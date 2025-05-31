@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import path from "path";
-import { ValidRoutes } from "shared/ValidRoutes";
+import { ValidRoutes } from "./shared/ValidRoutes";
 
 dotenv.config(); // Read the .env file in the current working directory, and load values into process.env.
 const PORT = process.env.PORT || 3000;

@@ -2,7 +2,10 @@
   "compilerOptions": {
     "target": "es2023",
     "module": "NodeNext",
-    "baseUrl": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "shared/*": ["packages/backend/src/shared/*"]
+    },
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
