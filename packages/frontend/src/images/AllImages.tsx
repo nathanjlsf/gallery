@@ -1,8 +1,10 @@
 import { ImageGrid } from "./ImageGrid.tsx";
-import type { IImageData } from "../MockAppData.ts";
+import type { IApiImageData } from "csc437-monorepo-backend/src/common/ApiImageData.ts";
 
 interface AllImagesProps {
-    images: IImageData[];
+  images: IApiImageData[];
+  isLoading: boolean;
+  isError: boolean;
 }
 
 export function AllImages({ images }: AllImagesProps) {
