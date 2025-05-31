@@ -1,10 +1,10 @@
-import express, { RequestHandler } from "express";
+import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { ValidRoutes } from "./shared/ValidRoutes";
-import { IMAGES } from "./common/ApiImageData";
 import { connectMongo } from "./connectMongo";
 import { ImageProvider } from "./ImageProvider";
+import { registerImageRoutes } from "./routes/imageRoutes";
 
 dotenv.config();
 
@@ -21,37 +21,14 @@ async function main() {
   app.use(express.static(STATIC_DIR));
   app.use(express.json());
 
-  app.get("/api/hello", (req, res) => {
+  app.get("/api/hello", (_req, res) => {
     res.send("Hello, World");
   });
 
-  app.get("/api/images", async (req, res) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    res.json(IMAGES);
-  });
+  // Register all image routes from routes/imageRoutes.ts
+  registerImageRoutes(app, imageProvider);
 
-  app.get("/api/images", async (_req, res) => {
-    await new Promise((r) => setTimeout(r, 1000)); 
-    const images = await imageProvider.getAllImages();
-    res.json(images);
-  });
-
-  const updateImageName: RequestHandler = (req, res) => {
-    const { imageId } = req.params as { imageId: string };
-    const { newName } = req.body as { newName: string };
-
-    const image = IMAGES.find((img) => img.id === imageId);
-    if (!image || typeof newName !== "string") {
-      res.status(400).json({ error: "Invalid imageId or newName" });
-      return;
-    }
-
-    image.name = newName;
-    res.json({ success: true });
-  };
-
-  app.post("/api/images/:imageId", updateImageName);
-
+  // Serve index.html for all non-API routes
   Object.values(ValidRoutes)
     .filter((route) => !route.startsWith("/api") && !route.includes(":"))
     .forEach((route) => {
