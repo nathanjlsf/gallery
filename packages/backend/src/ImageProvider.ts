@@ -22,6 +22,12 @@ export interface IApiImageData {
   };
 }
 
+export interface ICreateImageInput {
+  src: string;
+  name: string;
+  author: string;
+}
+
 export class ImageProvider {
   private imageCollection: Collection<IImageDocument>;
   private userCollection: Collection<IUserDocument>;
@@ -32,7 +38,7 @@ export class ImageProvider {
     this.userCollection = db.collection<IUserDocument>(process.env.USERS_COLLECTION_NAME!);
   }
 
-  async getAllImages(): Promise<IApiImageData[]> {
+  async getAllImagesDenormalized(): Promise<IApiImageData[]> {
     const images = await this.imageCollection.find().toArray();
 
     const authorIds = images
@@ -66,6 +72,15 @@ export class ImageProvider {
           username,
         },
       };
+    });
+  }
+
+  async createImage(input: ICreateImageInput): Promise<void> {
+    await this.imageCollection.insertOne({
+      _id: new ObjectId(),
+      src: input.src,
+      name: input.name,
+      author: new ObjectId(input.author),
     });
   }
 
@@ -109,11 +124,23 @@ export class ImageProvider {
     });
   }
 
-  async updateImageName(imageId: string, newName: string): Promise<number> {
+  async updateImageName(
+    imageId: string,
+    newName: string,
+    username: string
+  ): Promise<number> {
+    const userDoc = await this.userCollection.findOne({ username });
+    if (!userDoc) return 0;
+
     const result = await this.imageCollection.updateOne(
-      { _id: new ObjectId(imageId) },
+      {
+        _id: new ObjectId(imageId),
+        author: userDoc._id
+      },
       { $set: { name: newName } }
     );
+
     return result.matchedCount;
   }
+
 }

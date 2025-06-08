@@ -1,70 +1,93 @@
-import express, { Request, Response, RequestHandler } from "express";
+import express, { Request, Response, NextFunction, ErrorRequestHandler } from "express";
 import { ObjectId } from "mongodb";
 import { ImageProvider } from "../ImageProvider";
+import { verifyAuthToken } from "../middleware/verifyAuthToken";
+import { imageUpload, handleImageFileErrors } from "../imageUploadMiddleware";
 
 export function registerImageRoutes(app: express.Application, imageProvider: ImageProvider) {
-  const getAllHandler: RequestHandler = async (_req, res) => {
-    const images = await imageProvider.getAllImages();
-    res.json(images);
-    return; 
-  };
-  app.get("/api/images", getAllHandler);
+  const router = express.Router();
 
-  const searchHandler: RequestHandler = async (req, res) => {
-    const name = req.query.name;
-    if (typeof name !== "string") {
-      res.status(400).json({ 
-        error: "Bad Request", 
-        message: "Missing or invalid name param" 
-      });
-      return;
+  router.get(
+    "/api/images",
+    verifyAuthToken,
+    async (req: Request, res: Response) => {
+      const images = await imageProvider.getAllImagesDenormalized();
+      res.json(images);
     }
+  );
 
-    const images = await imageProvider.getImages(name);
-    res.json(images);
-    return; 
-  };
-  app.get("/api/images/search", searchHandler);
-
-  const updateHandler: RequestHandler = async (req, res) => {
-    const { imageId } = req.params;
-    const { newName } = req.body;
-
-    if (typeof newName !== "string") {
-      res.status(400).json({ 
-        error: "Bad Request", 
-        message: "newName must be a string" 
-      });
-      return; 
+  router.get(
+    "/api/images/search",
+    verifyAuthToken,
+    async (req: Request, res: Response) => {
+      const name = req.query.name;
+      if (typeof name !== "string") {
+        res
+          .status(400)
+          .send({ error: "Bad Request", message: "Missing or invalid name param" });
+        return;
+      }
+      const images = await imageProvider.getImages(name);
+      res.json(images);
     }
+  );
 
-    if (newName.length > 100) {
-      res.status(422).json({
-        error: "Unprocessable Entity",
-        message: "Image name exceeds 100 characters"
-      });
-      return; 
+  router.patch(
+    "/api/images/:imageId",
+    verifyAuthToken,
+    async (req: Request, res: Response) => {
+      const { imageId } = req.params;
+      const { newName } = req.body;
+      if (typeof newName !== "string") {
+        res
+          .status(400)
+          .send({ error: "Bad Request", message: "newName must be a string" });
+        return;
+      }
+
+      const username = req.user?.username;
+      if (!username) {
+        res.status(401).send({ error: "Unauthorized" });
+        return;
+      }
+
+      const matched = await imageProvider.updateImageName(imageId, newName, username);
+      if (!matched) {
+        res
+          .status(403)
+          .send({ error: "Forbidden", message: "You do not own this image" });
+        return;
+      }
+
+      res.sendStatus(204);
     }
+  );
 
-    if (!ObjectId.isValid(imageId)) {
-      res.status(404).json({ 
-        error: "Not Found", 
-        message: "Invalid image ID" 
-      });
-      return;
+  router.post(
+    "/api/images",
+    verifyAuthToken,
+    imageUpload.single("image"),
+    handleImageFileErrors as ErrorRequestHandler,
+    async (req: Request, res: Response) => {
+      if (!req.file || !req.body.name || !req.user) {
+        res
+          .status(400)
+          .send({
+            error: "Bad Request",
+            message: "Missing image file, title, or authentication",
+          });
+        return;
+      }
+
+      const filename = req.file.filename;
+      const src = `/uploads/${filename}`;
+      const name = String(req.body.name);
+      const author = req.user.username;
+
+      await imageProvider.createImage({ src, name, author });
+      res.sendStatus(201);
     }
+  );
 
-    const updatedCount = await imageProvider.updateImageName(imageId, newName);
-    if (updatedCount === 0) {
-      res.status(404).json({ 
-        error: "Not Found", 
-        message: "Image does not exist" 
-      });
-      return; 
-    }
-
-    res.status(204).send();
-    return; 
-  };
-  app.put("/api/images/:imageId", updateHandler);
+  app.use("/", router);
 }
