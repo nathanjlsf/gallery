@@ -53,7 +53,7 @@ async function main() {
     .filter((route) => !route.startsWith("/api") && !route.includes(":"))
     .forEach((route) => {
       app.get(route, (_req, res) => {
-        res.sendFile(path.join(__dirname, STATIC_DIR, "index.html"));
+        res.sendFile(path.join(STATIC_DIR, "index.html"));
       });
     });
 
