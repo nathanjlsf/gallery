@@ -13,7 +13,7 @@ import { imageUpload, handleImageFileErrors } from "./imageUploadMiddleware";
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const STATIC_DIR = process.env.STATIC_DIR || "public";
+const STATIC_DIR = path.resolve(__dirname, process.env.STATIC_DIR || "public");
 
 async function main() {
   const app = express();
